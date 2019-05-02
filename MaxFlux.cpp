@@ -33,16 +33,15 @@
 #include <stack>
 #include <iostream>
 
-#define unsigned int Int;
+#define UINT unsigned int;
 
 using namespace std;
 
 // ###################### Global variables ####################################################
 class Node;
-int suppliers; // Number of vertices
-int edges;     // Number of edges
-int storage;   // Number of storage
-unsigned int *storage;
+int suppliers;        // Number of vertices
+int edges;            // Number of edges
+int storage;          // Number of storage
 vector<Node *> nodes; // Vector of vertices
 stack<int> stackL;    // Stack
 int *parent;          // Array that contains the direct parent of each vertex
@@ -58,9 +57,10 @@ struct Edge
 class Node
 {
     vector<Edge> _connects; // Vector of adjacencies of the vertex
+    int height;
 
   public:
-    Node() { _connects = vector<Edge>(); }
+    Node() : height(0) { _connects = vector<Edge>(); }
     void addConnection(Edge edge) { _connects.push_back(edge); }
     vector<Edge> getConnections() { return _connects; }
     ~Node() { _connects.clear(); }
@@ -83,37 +83,47 @@ void readInput()
     for (int i = 0; i < nodesNum; i++)
         nodes[i] = new Node();
 
-    // Read suppliers
+    // Read suppliers capacity
     Edge edge;
     for (int i = 0; i < suppliers; i++)
     {
-        scanf("%u", &edge.cap);
+        if (scanf("%u", &edge.cap) < 0)
+            exit(-1);
         edge.dest = 2 + i;
         (*nodes[0]).addConnection(edge);
     }
 
+    // Read mid-way stations' capacity
     for (int i = 0; i < storage; i++)
     {
-        scanf("%u", &edge.cap);
+        if (scanf("%u", &edge.cap) < 0)
+            exit(-1);
         edge.dest = 2 + suppliers + storage + i;
         (*nodes[2 + suppliers + i]).addConnection(edge);
     }
 
-    // Update the adjacencies list of each vertex
-
-    while (scanf("%u %u", &edge[0], &edge[1]) > 0)
-    {
-        --connectNum;
-        (*nodes[routes[0] - 1]).addConnection(routes[1] - 1);
-        (*nodes[routes[1] - 1]).addConnection(routes[0] - 1);
-    }
-
-    if (connectNum != 0)
-        exit(-1);
+    // Read road network
+    unsigned int origin;
+    while (scanf("%u %u %u", &origin, &edge.dest, &edge.cap) > 0)
+        (*nodes[origin]).addConnection(edge);
 }
 
 int main()
 {
+    readInput();
+    int size = nodes.size();
+    for (int i = 0; i < size; i++)
+    {
+        printf("Node %d has %lu conncetions\n", i, (*nodes[i]).getConnections().size());
+        delete nodes[i];
+    }
+
+    /*
+    // DONT DELETE:
+    // Keep this code to free nodes
+    for (Node *node : nodes)  
+        delete node;
+    */
 
     return 0;
 }
