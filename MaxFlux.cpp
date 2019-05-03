@@ -34,6 +34,7 @@
 #include <iostream>
 
 #define UINT unsigned int;
+#define MIN(a, b) (a < b ? a : b)
 
 using namespace std;
 
@@ -63,6 +64,8 @@ class Node
     Node() : height(0) { _connects = vector<Edge>(); }
     void addConnection(Edge edge) { _connects.push_back(edge); }
     vector<Edge> getConnections() { return _connects; }
+    int getHeight() { return height; }
+    void setHeight(int h) { height = h; }
     ~Node() { _connects.clear(); }
 };
 
@@ -108,13 +111,26 @@ void readInput()
         (*nodes[origin]).addConnection(edge);
 }
 
+void relabel(unsigned int u) {
+    Node node = (*nodes[u]);
+    vector<Edge> adjs = node.getConnections();
+    int size = adjs.size();
+    int minHeight = (*nodes[adjs[0].dest]).getHeight();
+    for (int i = 1; i < size; i++) {
+        if ((*nodes[adjs[i].dest]).getHeight() < minHeight)
+            minHeight = (*nodes[adjs[i].dest]).getHeight();
+    }
+    (*nodes[u]).setHeight(minHeight + 1);
+}
+
 int main()
 {
-    readInput();
+    readInput(); 
+    relabel(2);
     int size = nodes.size();
     for (int i = 0; i < size; i++)
     {
-        printf("Node %d has %lu conncetions\n", i, (*nodes[i]).getConnections().size());
+        printf("Node %d has %lu conncetions and height %d\n", i, (*nodes[i]).getConnections().size(), (*nodes[i]).getHeight());
         delete nodes[i];
     }
 
