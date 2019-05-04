@@ -58,14 +58,15 @@ struct Edge
 class Node
 {
     vector<Edge> _connects; // Vector of adjacencies of the vertex
-    int height;
+    int _height, _excess;
 
   public:
-    Node() : height(0) { _connects = vector<Edge>(); }
+    Node() { _connects = vector<Edge>(); }
     void addConnection(Edge edge) { _connects.push_back(edge); }
     vector<Edge> getConnections() { return _connects; }
-    int getHeight() { return height; }
-    void setHeight(int h) { height = h; }
+    int getHeight() { return _height; }
+    void setHeight(int h) { _height = h; }
+    int getExcess() { return _excess; }
     ~Node() { _connects.clear(); }
 };
 
@@ -111,35 +112,45 @@ void readInput()
         (*nodes[origin]).addConnection(edge);
 }
 
-void relabel(unsigned int u) {
+void relabel(unsigned int u)
+{
     Node node = (*nodes[u]);
     vector<Edge> adjs = node.getConnections();
-    int size = adjs.size();
     int minHeight = (*nodes[adjs[0].dest]).getHeight();
-    for (int i = 1; i < size; i++) {
-        if ((*nodes[adjs[i].dest]).getHeight() < minHeight)
-            minHeight = (*nodes[adjs[i].dest]).getHeight();
+    int temp = 0;
+    for (Edge e : adjs)
+    {
+        temp = (*nodes[e.dest]).getHeight();
+        if (temp < minHeight)
+            minHeight = temp;
     }
-    (*nodes[u]).setHeight(minHeight + 1);
+
+    node.setHeight(++minHeight);
+}
+
+void printStatus(vector<Node *> nodes)
+{
+    int size = nodes.size();
+
+    for (int i = 0; i < size; i++)
+    {
+        Node node = (*nodes[i]);
+        vector<Edge> edges = (*nodes[i]).getConnections();
+        printf("Node %d\n\th:%d\n\te:%d\n\tConnections:\n", i+1, node.getHeight(), node.getExcess());
+        for (Edge e : edges)
+            printf("\t\t%d%s---%d--->%d\n", i, e.cap > 9 ? "" : " ", e.cap, e.dest);
+    }
 }
 
 int main()
 {
-    readInput(); 
+    readInput();
     relabel(2);
-    int size = nodes.size();
-    for (int i = 0; i < size; i++)
-    {
-        printf("Node %d has %lu conncetions and height %d\n", i, (*nodes[i]).getConnections().size(), (*nodes[i]).getHeight());
-        delete nodes[i];
-    }
 
-    /*
-    // DONT DELETE:
+    printStatus(nodes);
     // Keep this code to free nodes
-    for (Node *node : nodes)  
+    for (Node *node : nodes)
         delete node;
-    */
 
     return 0;
 }
