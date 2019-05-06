@@ -79,7 +79,7 @@ void readInput()
         exit(-1);
 
     // Calc the number of nodes
-    nodesNum = 1 + suppliers + storage * 2;
+    nodesNum = 2 + suppliers + storage * 2;
     // Shorten the nodes list
     nodes.resize(nodesNum);
 
@@ -89,12 +89,16 @@ void readInput()
 
     // Read suppliers capacity
     Edge edge;
+    Edge backEdge;
+    backEdge.dest = 0;
+    backEdge.cap = 0;
     for (int i = 0; i < suppliers; i++)
     {
         if (scanf("%u", &edge.cap) < 0)
             exit(-1);
         edge.dest = 2 + i;
         (*nodes[0]).addConnection(edge);
+        (*nodes[2+i]).addConnection(backEdge);  // For the residual graph
     }
 
     // Read mid-way stations' capacity
@@ -104,12 +108,18 @@ void readInput()
             exit(-1);
         edge.dest = 2 + suppliers + storage + i;
         (*nodes[2 + suppliers + i]).addConnection(edge);
+        
+        backEdge.dest = 2 + suppliers + i;
+        (*nodes[2 + suppliers + storage + i]).addConnection(backEdge);        
     }
 
     // Read road network
     unsigned int origin;
-    while (scanf("%u %u %u", &origin, &edge.dest, &edge.cap) > 0)
+    while (scanf("%u %u %u", &origin, &edge.dest, &edge.cap) > 0) {
         (*nodes[origin]).addConnection(edge);
+        backEdge.dest = origin;
+        (*nodes[edge.dest]).addConnection(backEdge);
+    }
 }
 
 void relabel(unsigned int u)
@@ -125,18 +135,20 @@ void relabel(unsigned int u)
             minHeight = temp;
     }
 
-    node.setHeight(++minHeight);
+    (*nodes[u]).setHeight(++minHeight);
+    
 }
 
 void printStatus(vector<Node *> nodes)
 {
     int size = nodes.size();
+    printf("Size: %d\n", size);
 
     for (int i = 0; i < size; i++)
     {
         Node node = (*nodes[i]);
         vector<Edge> edges = (*nodes[i]).getConnections();
-        printf("Node %d\n\th:%d\n\te:%d\n\tConnections:\n", i+1, node.getHeight(), node.getExcess());
+        printf("Node %d\n\th:%d\n\te:%d\n\tConnections:\n", i, node.getHeight(), node.getExcess());
         for (Edge e : edges)
             printf("\t\t%d%s---%d--->%d\n", i, e.cap > 9 ? "" : " ", e.cap, e.dest);
     }
