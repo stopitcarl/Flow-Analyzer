@@ -1,41 +1,10 @@
-/* Relabel to front
-    Vertice
-        lista de adjancencias
-    
-    Adjacencia
-        capacidade
-
-        Vertice:out : {
-            adja cencias: [3: in, 5: in ,7 ,8] // length = v
-            capacidade: [2, 9, 3, 4]
-
-            
-        }
-    (A-in)--100-->(A-out)-->
-
-    Vertice {
-        push : function {}
-    }
-
-    armazem : [2, 6, 8] / <- heap
-    [0,0,0,0,1,0,0,0,1,0]
-
-    vertices : [1,2,3,4,5,6,7,8,9]
-
-    (s)-20/500->(1)-20/20->(2)-20/100->(3)-20/20->(4)-20/100->(t)   //Relabel O(V³) + BFS
-                 |          |
-                (8)--0/30--(9)
-
-    
-*/
-
 #include <vector>
-#include <stack>
+#include <list>
 #include <string>
 #include <iostream>
 
-#define UINT unsigned int;
 #define MIN(a, b) (a < b ? a : b)
+#define HEIGHT(a) (nodes[a]->getHeight())
 
 using namespace std;
 
@@ -45,36 +14,38 @@ int suppliers;        // Number of vertices
 int edges;            // Number of edges
 int storage;          // Number of storage
 vector<Node *> nodes; // Vector of vertices
-stack<int> stackL;    // Stack
+list<Node *> L;       // Stack
 int *parent;          // Array that contains the direct parent of each vertex
 bool *stackU;         // Checklist if a vertex is in the stack
 
 struct Edge
 {
-    unsigned int dest;
-    unsigned int cap;
+    int dest;
+    int cap;
+    Edge *back;
 };
 
 // ###################### Node ################################################################
 class Node
 {
-    vector<Edge> _connects; // Vector of adjacencies of the vertex
+    vector<Edge *> _connects; // Vector of adjacencies of the vertex
     int _height, _excess, _id;
 
   public:
-    Node(int id) : _id(id) { _connects = vector<Edge>(); }
-    void addConnection(Edge edge) { _connects.push_back(edge); }
-    vector<Edge> getConnections() { return _connects; }
+    Node(int id) : _id(id) { _connects = vector<Edge *>(); }
+    void addConnection(Edge *edge) { _connects.push_back(edge); }
+    vector<Edge *> getConnections() { return _connects; }
     int getHeight() { return _height; }
     void setHeight(int h) { _height = h; }
-    int getExcess() { return _excess; }
+    int *getExcess() { return &_excess; }
+    void addExcess(int e) { _excess += e; }
     string getId()
     {
-        if (_id < suppliers + 1)
+        if (_id < suppliers + 2)
             return to_string(_id);
         else
         {
-            if (_id < suppliers + 1 + storage)
+            if (_id < suppliers + 2 + storage)
                 return to_string(_id) + "_in";
             else
                 return to_string(_id) + "_out";
@@ -100,64 +71,126 @@ void readInput()
     // Initialize the nodes
     for (int i = 0; i < nodesNum; i++)
         nodes[i] = new Node(i);
+    nodes[0]->setHeight(nodes.size());
 
     // Read suppliers capacity
     printf("reading line 2 (suppliers)\n");
-    Edge edge;
-    Edge backEdge;
-    backEdge.dest = 0;
-    backEdge.cap = 0;
+    Edge *edge, *backEdge;
     for (int i = 0; i < suppliers; i++)
     {
-        if (scanf("%u", &edge.cap) < 0)
+        edge = new Edge, backEdge = new Edge;
+        if (scanf("%u", &backEdge->cap) < 0)
             exit(-1);
-        edge.dest = 2 + i;
-        (*nodes[0]).addConnection(edge);
-        (*nodes[2+i]).addConnection(backEdge);  // For the residual graph
+        edge->dest = 2 + i;
+        edge->back = backEdge;
+        backEdge->back = edge;
+        nodes[2 + i]->addExcess(backEdge->cap);
+        nodes[0]->addConnection(edge);
+        nodes[2 + i]->addConnection(backEdge); // Part of residual graph
     }
+
     printf("reading line 3 (gas stations capacity)\n");
     // Read mid-way stations' capacity
     for (int i = 0; i < storage; i++)
     {
-        if (scanf("%u", &edge.cap) < 0)
+        edge = new Edge, backEdge = new Edge;
+        if (scanf("%u", &edge->cap) < 0)
             exit(-1);
-        edge.dest = 2 + suppliers + storage + i;
-        (*nodes[2 + suppliers + i]).addConnection(edge);
-        
-        backEdge.dest = 2 + suppliers + i;
-        (*nodes[2 + suppliers + storage + i]).addConnection(backEdge);        
+        edge->dest = 2 + suppliers + storage + i;
+        edge->back = backEdge;
+        nodes[2 + suppliers + i]->addConnection(edge);
+
+        backEdge->dest = 2 + suppliers + i;
+        backEdge->back = edge;
+        nodes[edge->dest]->addConnection(backEdge);
     }
 
     // Read road network
     printf("reading line 4 and onwards (roads)\n");
     int origin;
-    while (scanf("%u %u %u", &origin, &edge.dest, &edge.cap) > 0) {
+    edge = new Edge, backEdge = new Edge;
+    while (scanf("%u %u %u", &origin, &edge->dest, &edge->cap) > 0)
     {
+
         if (origin > 1 + suppliers) // If edge goes out of storage for storage_in and storage_out
             origin += storage;
 
-        (*nodes[origin]).addConnection(edge);
+        edge->back = backEdge;
+        backEdge->dest = origin;
+
+        nodes[origin]->addConnection(edge);
+        nodes[edge->dest]->addConnection(backEdge);
+        edge = new Edge, backEdge = new Edge;
     }
-        backEdge.dest = origin;
-        (*nodes[edge.dest]).addConnection(backEdge);
-    }
+    delete edge, delete backEdge;
 }
 
-void relabel(unsigned int u)
+Edge *relabel(Node *node)
 {
-    Node node = (*nodes[u]);
-    vector<Edge> adjs = node.getConnections();
-    int minHeight = (*nodes[adjs[0].dest]).getHeight();
-    int temp = 0;
-    for (Edge e : adjs)
-    {
-        temp = (*nodes[e.dest]).getHeight();
-        if (temp < minHeight)
-            minHeight = temp;
-    }
+    cout << "Relabeling" << endl;
+    vector<Edge *> adjs = node->getConnections();
+    int temp, minHeight = nodes[adjs[0]->dest]->getHeight();
+    Edge *edge = adjs[0];
+    for (Edge *e : adjs)
+        if (e->cap > 0)
+        {
+            temp = HEIGHT(e->dest);
+            if (temp < minHeight)
+            {
+                minHeight = temp;
+                edge = e;
+            }
+        }
 
-    (*nodes[u]).setHeight(++minHeight);
-    
+    node->setHeight(minHeight + 1);
+    cout << "New height:" << minHeight + 1 << " with edge to " << edge->dest << endl;
+    return edge;
+}
+
+int push(Edge *e, int *push)
+{
+
+    int amountPushed = *push > e->cap ? e->cap : *push;
+    cout << "Pushing " << amountPushed << " to " << e->dest << endl;
+
+    // Change variable capacity
+    *push -= amountPushed;
+    e->back->cap += amountPushed;
+    e->cap -= amountPushed;
+    nodes[e->dest]->addExcess(amountPushed);
+
+    return amountPushed;
+}
+
+void relabelToFront()
+{
+    // Create list L
+    L = list<Node *>(nodes.begin(), nodes.end());
+    L.pop_front(); // remove source
+    L.pop_front(); // remove sink
+
+    Node *node;
+    auto it = L.begin();
+    while (it != L.end())
+    {
+        node = *it;
+        int *excess = node->getExcess();
+        while (*excess > 0)
+        {
+            cout << "Entering node " << node->getId() << " e:" << *node->getExcess() << " h:" << node->getHeight() << endl;
+            vector<Edge *> adjs = node->getConnections();
+            for (Edge *e : adjs)
+                if (e->cap > 0 && HEIGHT(e->dest) < node->getHeight())
+                    push(e, excess);
+            if (*excess > 0)
+            {
+                push(relabel(node), excess);
+                L.splice(L.begin(), L, it);
+                it = L.begin();
+            }
+        }
+        ++it;
+    }
 }
 
 void printStatus(vector<Node *> nodes)
@@ -168,22 +201,24 @@ void printStatus(vector<Node *> nodes)
     for (int i = 0; i < size; i++)
     {
         Node node = (*nodes[i]);
-        vector<Edge> edges = (*nodes[i]).getConnections();
-        cout << "Node " << node.getId() << "\n\th: " << node.getHeight() << "\n\te: " << node.getExcess()
+        vector<Edge *> edges = nodes[i]->getConnections();
+        cout << "Node " << node.getId() << "\n\th: " << node.getHeight() << "\n\te: " << *node.getExcess()
              << endl
              << "Connections:\n";
-        for (Edge e : edges)
-            cout << "\t" << i << "---" << e.cap << "--->" << e.dest << endl;
+        for (Edge *e : edges)
+            cout << "\t" << i << "---" << e->cap << "--->" << e->dest << endl;
     }
 }
 
 int main()
 {
     readInput();
-    //relabel(2);
-    printf("here\n");
+    // printStatus(nodes);
+    cout << "################## RELABEL TO FRONT ##########################" << endl;
+    relabelToFront();
 
     printStatus(nodes);
+
     // Keep this code to free nodes
     for (Node *node : nodes)
         delete node;
