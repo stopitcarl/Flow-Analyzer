@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <stack>
+#include <string>
 #include <iostream>
 
 #define UINT unsigned int;
@@ -58,21 +59,34 @@ struct Edge
 class Node
 {
     vector<Edge> _connects; // Vector of adjacencies of the vertex
-    int _height, _excess;
+    int _height, _excess, _id;
 
   public:
-    Node() { _connects = vector<Edge>(); }
+    Node(int id) : _id(id) { _connects = vector<Edge>(); }
     void addConnection(Edge edge) { _connects.push_back(edge); }
     vector<Edge> getConnections() { return _connects; }
     int getHeight() { return _height; }
     void setHeight(int h) { _height = h; }
     int getExcess() { return _excess; }
+    string getId()
+    {
+        if (_id < suppliers + 1)
+            return to_string(_id);
+        else
+        {
+            if (_id < suppliers + 1 + storage)
+                return to_string(_id) + "_in";
+            else
+                return to_string(_id) + "_out";
+        }
+    }
     ~Node() { _connects.clear(); }
 };
 
 void readInput()
 {
-    int suppliers, storage, edges, nodesNum;
+    int nodesNum;
+    printf("reading line 1 (suppliers, gas stations, number of roads)\n");
 
     // Read the number of vertexes and edges
     if (!scanf("%u %u %u", &suppliers, &storage, &edges))
@@ -85,9 +99,10 @@ void readInput()
 
     // Initialize the nodes
     for (int i = 0; i < nodesNum; i++)
-        nodes[i] = new Node();
+        nodes[i] = new Node(i);
 
     // Read suppliers capacity
+    printf("reading line 2 (suppliers)\n");
     Edge edge;
     Edge backEdge;
     backEdge.dest = 0;
@@ -100,7 +115,7 @@ void readInput()
         (*nodes[0]).addConnection(edge);
         (*nodes[2+i]).addConnection(backEdge);  // For the residual graph
     }
-
+    printf("reading line 3 (gas stations capacity)\n");
     // Read mid-way stations' capacity
     for (int i = 0; i < storage; i++)
     {
@@ -114,9 +129,15 @@ void readInput()
     }
 
     // Read road network
-    unsigned int origin;
+    printf("reading line 4 and onwards (roads)\n");
+    int origin;
     while (scanf("%u %u %u", &origin, &edge.dest, &edge.cap) > 0) {
+    {
+        if (origin > 1 + suppliers) // If edge goes out of storage for storage_in and storage_out
+            origin += storage;
+
         (*nodes[origin]).addConnection(edge);
+    }
         backEdge.dest = origin;
         (*nodes[edge.dest]).addConnection(backEdge);
     }
@@ -148,16 +169,19 @@ void printStatus(vector<Node *> nodes)
     {
         Node node = (*nodes[i]);
         vector<Edge> edges = (*nodes[i]).getConnections();
-        printf("Node %d\n\th:%d\n\te:%d\n\tConnections:\n", i, node.getHeight(), node.getExcess());
+        cout << "Node " << node.getId() << "\n\th: " << node.getHeight() << "\n\te: " << node.getExcess()
+             << endl
+             << "Connections:\n";
         for (Edge e : edges)
-            printf("\t\t%d%s---%d--->%d\n", i, e.cap > 9 ? "" : " ", e.cap, e.dest);
+            cout << "\t" << i << "---" << e.cap << "--->" << e.dest << endl;
     }
 }
 
 int main()
 {
     readInput();
-    relabel(2);
+    //relabel(2);
+    printf("here\n");
 
     printStatus(nodes);
     // Keep this code to free nodes
