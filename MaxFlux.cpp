@@ -3,6 +3,7 @@
 #include <list>
 #include <string>
 #include <iostream>
+#include <cmath>
 
 #define MIN(a, b) (a < b ? a : b)
 #define HEIGHT(a) (nodes[a]->getHeight())
@@ -167,11 +168,14 @@ void bfs(int startingNode)
     // Mark the current node as visited and enqueue it
     found[startingNode] = found[0] = true;
 
+    bool augStations[2 + suppliers + storage * 2]{0};
+
     queue.push(startingNode);
 
     // List of adjencies
     vector<Edge *> edges;
     list<int *> minimumCut = list<int *>();
+    list<int> stations = list<int>();
 
     while (!queue.empty())
     {
@@ -179,24 +183,26 @@ void bfs(int startingNode)
         startingNode = queue.front();
         queue.pop();
         edges = nodes[startingNode]->getConnections();
-        //   cout << "On " << nodes[startingNode]->getId() << endl;
-
         for (Edge *edge : edges)
         {
             if (!found[edge->dest])
             {
                 if (edge->cap > 0 && edge->back->cap == 0)
+                {
+                    if (startingNode >= (suppliers + 2) && edge->dest >= (suppliers + 2) && abs(edge->dest - startingNode) == storage)
+                        augStations[startingNode] = augStations[edge->dest] = true;
+
                     minimumCut.push_back(new int[2]{edge->dest, startingNode});
+                }
                 else
                 {
+                    augStations[startingNode] = augStations[edge->dest] = false;
                     found[edge->dest] = true;
                     queue.push(edge->dest);
                 }
             }
         }
     }
-
-    list<int> stations = list<int>();
 
     int *edge;
     for (auto it = minimumCut.begin(); it != minimumCut.end(); it++)
@@ -207,9 +213,14 @@ void bfs(int startingNode)
             it = minimumCut.erase(it);
             --it;
         }
-        else if (edge[0] >= (suppliers + 2) && edge[1] >= (suppliers + 2) && (edge[1] - edge[0]) == storage) // If it's a station-to-station edge
+        else if (edge[0] >= (suppliers + 2) && edge[1] >= (suppliers + 2) && abs(edge[1] - edge[0]) == storage) // If it's a station-to-station edge
         {
             stations.push_back(MIN(edge[0], edge[1]));
+            it = minimumCut.erase(it);
+            --it;
+        }
+        else if (augStations[edge[0]] || augStations[edge[1]]) // ignore this
+        {
             it = minimumCut.erase(it);
             --it;
         }
@@ -350,11 +361,21 @@ int main()
     isInL[0] = isInL[1] = true; // Kids, here's a little lesson in trickery
     found = new bool[nodesNum]{0};
 
-    //printStatus(nodes);
-    //cout << "################## RELABEL TO FRONT ##########################" << endl;
-    relabelToFront();
-    //printStatus(nodes);
+    //    printStatus(nodes);
 
+    /*printNode(nodes[37]);
+    printNode(nodes[37 + storage]);
+    printNode(nodes[47]);
+    printNode(nodes[47 + storage]);
+    */
+    //    cout << "################## RELABEL TO FRONT ##########################" << endl;
+    relabelToFront();
+    /*
+    printNode(nodes[37]);
+    printNode(nodes[37 + storage]);
+    printNode(nodes[47]);
+    printNode(nodes[47 + storage]);
+*/
     cout << checkOutGoingFlow(nodes[1]) << endl; // Print max flow
     bfs(1);
 
