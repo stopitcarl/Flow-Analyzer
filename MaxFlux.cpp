@@ -15,8 +15,9 @@ using namespace std;
 
 // ###################### Global variables ####################################################
 class Node;
-int suppliers;        // Number of suppliers
-int storage;          // Number of storage
+int suppliers; // Number of suppliers
+int storage;   // Number of storage
+int nodesNum;
 vector<Node *> nodes; // Vector of nodes
 queue<int> L;         // Queue for Relabel to front
 bool *found;          // Array that contains the direct parent of each vertex
@@ -116,7 +117,12 @@ int push(Edge *e, int *push)
 
 void relabelToFront()
 {
+    // Initialize node status array
+    found = new bool[nodesNum]{0};
+
     // Create list L
+    isInL = new bool[nodesNum]{0};
+    isInL[0] = isInL[1] = true; // Kids, here's a little lesson in trickery
     L = queue<int>();
     for (int i = 0; i < suppliers; i++)
     {
@@ -133,8 +139,6 @@ void relabelToFront()
         int *excess = node->getExcess();
         while (*excess > 0)
         {
-            //   cout << "Node " << node->getId() << endl;
-
             for (Edge *e : adjs)
             {
                 if (e->cap > 0 && HEIGHT(e->dest) < node->getHeight()) // IF: edge has capacity and is lower
@@ -143,11 +147,9 @@ void relabelToFront()
                 if (*excess == 0) // IF: There's nor more excess to push
                     break;        // THEN: Leave loop
             }
-
             if (*excess > 0)
                 push(relabel(node), excess);
         }
-
         isInL[node->getIndex()] = false;
         L.pop();
     }
@@ -176,13 +178,13 @@ void bfs(int startingNode)
     queue.push(startingNode);
 
     // Create bool array to check if a given node is an augmented station
-    bool augStations[2 + suppliers + storage * 2]{0};
+    bool augStations[storage * 2 + suppliers + 2]{0};
+    int numStations = 0;
 
     // List of adjencies
     vector<Edge *> edges;
-    list<int *> minimumCut = list<int *>();
-    deque<int> stations = deque<int>();
 
+    list<int *> minimumCut = list<int *>();
     while (!queue.empty())
     {
         // Dequeue a vertex from queue and print it
@@ -196,12 +198,18 @@ void bfs(int startingNode)
                 if (edge->cap > 0 && edge->back->cap == 0)
                 {
                     if (IS_STATION(startingNode) && IS_STATION(edge->dest) && abs(edge->dest - startingNode) == storage)
+                    {
                         augStations[startingNode] = augStations[edge->dest] = true;
-
-                    minimumCut.push_back(new int[2]{edge->dest, startingNode});
+                        numStations++;
+                    }
+                    else
+                        minimumCut.push_back(new int[2]{edge->dest, startingNode});
                 }
                 else
                 {
+                    if (augStations[startingNode] || augStations[edge->dest])
+                        numStations--;
+
                     augStations[startingNode] = augStations[edge->dest] = false;
                     found[edge->dest] = true;
                     queue.push(edge->dest);
@@ -219,58 +227,32 @@ void bfs(int startingNode)
             it = minimumCut.erase(it);
             --it;
         }
-        else if (IS_STATION(edge[0]) && IS_STATION(edge[1]) && abs(edge[1] - edge[0]) == storage) // If it's a station-to-station edge
-        {
-            stations.push_back(MIN(edge[0], edge[1]));
-            it = minimumCut.erase(it);
-            --it;
-        }
         else if (augStations[edge[0]] || augStations[edge[1]]) // If either one of its nodes is an augmented station
         {
             it = minimumCut.erase(it);
             --it;
         }
-        else if (IS_STATION_OUT(edge[0]))
+        else if (IS_STATION_OUT(edge[0])) // TODO: comment (yea ironic I know, shut up)
             edge[0] -= storage;
     }
 
-    if (!stations.empty())
-    {
-        auto it = stations.begin();
-        sort(it, stations.end());
-        cout << *it;
-        ++it;
-        while (it != stations.end())
-        {
-            cout << ' ' << *it;
-            ++it;
-        }
-    }
-    cout << endl;
+    int stationLimit = 2 + suppliers + storage;
+    if (numStations > 0)
+        for (int i = 2 + suppliers; i < stationLimit; i++)
+            if (augStations[i])
+            {
+                printf("%d", i);
+                numStations--;
+                if (numStations > 0)
+                    printf(" ");
+            }
+    printf("\n");
 
     minimumCut.sort(compareEdges);
     for (int *edge : minimumCut)
-        cout << edge[0] << " " << edge[1] << endl;
-}
-/*
-void printNode(Node *node)
-{
-    vector<Edge *> edges = node->getConnections();
-    cout << "Node " << node->getId() << "\th: " << node->getHeight() << "\te: " << *node->getExcess()
-         << endl;
-    for (Edge *e : edges)
-        cout << "\t" << node->getId()
-             << "---" << e->cap << "--->" << nodes[e->dest]->getId() << endl;
+        printf("%d %d\n", edge[0], edge[1]);
 }
 
-void printStatus(vector<Node *> nodes)
-{
-    int size = nodes.size();
-    cout << "Size: " << size << endl;
-    for (int i = 0; i < size; i++)
-        printNode(nodes[i]);
-}
-*/
 int readInput()
 {
     int nodesNum;
@@ -353,16 +335,11 @@ int readInput()
 
 int main()
 {
-    int nodesNum = readInput();
+    nodesNum = readInput();
 
-    isInL = new bool[nodesNum]{0};
-    isInL[0] = isInL[1] = true; // Kids, here's a little lesson in trickery
-    found = new bool[nodesNum]{0};
-
-    //    cout << "################## RELABEL TO FRONT ##########################" << endl;
     relabelToFront();
 
-    cout << checkOutGoingFlow(nodes[1]) << endl; // Print max flow
+    printf("%d\n", checkOutGoingFlow(nodes[1])); // Print max flow
     bfs(1);
 
     /* 
